@@ -1,0 +1,6 @@
+[package]
+name = "jp-cli"
+version = "0.1.0"
+authors = ["Kevin Lanni <therealklanni@gmail.com>"]
+
+[dependencies]
