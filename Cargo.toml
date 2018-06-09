@@ -1,6 +1,8 @@
 [package]
 name = "jp-cli"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Kevin Lanni <therealklanni@gmail.com>"]
 
 [dependencies]
+clap = "2.31.2"
+serde_json = "*"
