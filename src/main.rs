@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::prelude::*;
+use std::io::{self, Read};
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -8,27 +8,47 @@ use serde_json::{Value, from_str};
 
 fn main() {
   let matches = clap_app!(jp =>
-    (version: "0.1.0")
-    (author: "Kevin Lanni <therealklanni@gmail.com>")
+    (version: "0.0.1")
     (about: "Simple JSON parser/inspector")
     (@arg FILE: -f --file +takes_value "JSON file to parse")
     (@arg PATTERN: "Query pattern")
   ).get_matches();
 
-  let filename = matches.value_of("FILE").unwrap();
   let pattern = matches.value_of("PATTERN").unwrap_or("");
-  let mut f = File::open(filename).expect("file not found");
-  let mut contents = String::new();
+  let prefixed: String = format!("{}{}", "/", pattern);
+  let pointer: &str = &prefixed.replace(".", "/");
 
-  f.read_to_string(&mut contents).expect("error reading file");
+  if matches.is_present("FILE") {
+    let filename = matches.value_of("FILE").unwrap();
+    let mut contents = String::new();
+    let mut file = File::open(filename).expect("file not found");
 
-  let value: Value = from_str(&contents).unwrap();
+    file.read_to_string(&mut contents).expect("I/O error reading file");
 
-  let prefix: String = "/".to_owned() + pattern;
+    let value: Value = from_str(&contents).unwrap();
 
-  let pointer: &str = &prefix.replace(".", "/");
+    if matches.is_present("PATTERN") {
+      // println!("{:?}", pointer);
+      println!("{:#}", value.pointer(pointer).unwrap_or(&json!("")));
+    } else {
+      println!("{:#}", value);
+    }
+  } else {
+    println!("No file option specified");
+    let mut buffer = String::new();
+    let stdin = io::stdin();
+    let mut handle = stdin.lock();
 
-  println!("{:#}", contents);
-  println!("{:?}", pointer);
-  println!("{:#}", value.pointer(pointer).unwrap_or(&json!("")));
+    handle.read_to_string(&mut buffer).expect("I/O error reading buffer");
+
+    let value: Value = from_str(&buffer).unwrap();
+
+
+    if matches.is_present("PATTERN") {
+      // println!("{:?}", pointer);
+      println!("{:#}", value.pointer(pointer).unwrap_or(&json!("")));
+    } else {
+      println!("{:#}", value);
+    }
+  }
 }
