@@ -4,5 +4,8 @@ version = "0.0.1"
 authors = ["Kevin Lanni <therealklanni@gmail.com>"]
 
 [dependencies]
-clap = "2.31.2"
 serde_json = "*"
+
+[dependencies.clap]
+version = "2.31.2"
+features = ["suggestions", "color"]
