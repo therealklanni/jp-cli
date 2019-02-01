@@ -9,9 +9,9 @@ use serde_json::{from_str, Value};
 
 fn main() {
     let matches = clap_app!(jp =>
-        (version: "0.0.1")
-        (about: "Simple JSON parser/inspector")
-        (@arg FILE: -f --file +takes_value "JSON file to parse")
+        (version: crate_version!())
+        (about: "JSON Probe (http://github.com/therealklanni/jp)")
+        (@arg FILE: -f --file +takes_value "JSON file to probe")
         (@arg PATTERN: "Query pattern")
     )
     .get_matches();
