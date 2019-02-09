@@ -3,7 +3,6 @@
 
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::process::exit;
 
 use clap::{clap_app, crate_version};
 use exit::Exit;
@@ -15,7 +14,7 @@ enum JpErr {
     EmptyFileError,
     JsonParseError,
     InvalidQuery(String),
-    FileOpenError,
+    FileOpenError(String),
 }
 
 impl From<JpErr> for i32 {
@@ -25,7 +24,7 @@ impl From<JpErr> for i32 {
             JpErr::EmptyFileError => 5,
             JpErr::JsonParseError => 3,
             JpErr::InvalidQuery(_) => 4,
-            JpErr::FileOpenError => 1,
+            JpErr::FileOpenError(_) => 1,
         }
     }
 }
@@ -79,14 +78,8 @@ fn main() -> Exit<JpErr> {
 
     if matches.is_present("FILE") {
         let filename = matches.value_of("FILE").unwrap();
-        // fileopenerror
-        let file = match File::open(filename) {
-            Ok(file) => file,
-            Err(e) => {
-                eprintln!("Error: {}: {}", e, filename);
-                exit(1);
-            }
-        };
+        let file = File::open(filename)
+            .map_err(|_| JpErr::FileOpenError(filename.to_string()))?;
         let mut buf_reader = BufReader::new(file);
 
         value = read_from_source(&mut buf_reader)?;
