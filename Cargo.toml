@@ -1,7 +1,18 @@
 [package]
 name = "jp"
-version = "0.0.1"
+version = "0.1.0"
+edition = "2018"
 authors = ["Kevin Lanni <therealklanni@gmail.com>"]
+description = "JSON Probe — pluck values from JSON input"
+repository = "http://github.com/therealklanni/jp-cli"
+keywords = ["JSON", "CLI", "probe", "parse", "print"]
+categories = ["command-line-utilities"]
+license = "MITNFA"
+
+[badges]
+is-it-maintained-issue-resolution = { repository = "therealklanni/jp-cli" }
+is-it-maintained-open-issues = { repository = "therealklanni/jp-cli" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 serde_json = "*"
