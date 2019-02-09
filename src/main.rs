@@ -31,10 +31,25 @@ fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
     }
 }
 
-fn print_json(value: Value, pointer: String) {
-    match value.pointer(&pointer) {
-        None => eprintln!("Invalid query: {}", pointer[1..].replace('/', ".")),
-        value => println!("{:#}", value.unwrap()),
+fn print_json(value: Value, options: PrintOptions) {
+    let json: &Value;
+
+    if options.pointer == "/" {
+        json = &value;
+    } else {
+        json = match value.pointer(&options.pointer) {
+            None => {
+                eprintln!("Invalid query: {}", options.pointer[1..].replace('/', "."));
+                exit(4);
+            }
+            value => value.unwrap(),
+        }
+    }
+
+    if options.pretty {
+        println!("{:#}", json);
+    } else {
+        println!("{}", json);
     }
 }
 
@@ -43,6 +58,7 @@ fn main() {
         (version: crate_version!())
         (about: "JSON Probe (http://github.com/therealklanni/jp-cli)")
         (@arg FILE: -f --file +takes_value "JSON file to probe")
+        (@arg PRETTY: -P --pretty "Prints pretty format for humans")
         (@arg PATTERN: "Query pattern")
     )
     .get_matches();
@@ -71,5 +87,15 @@ fn main() {
         value = read_from_source(&mut handle);
     }
 
-    print_json(value, pointer);
+    let options = PrintOptions {
+        pointer,
+        pretty: matches.is_present("PRETTY"),
+    };
+
+    print_json(value, options);
+}
+
+struct PrintOptions {
+    pointer: String,
+    pretty: bool,
 }
