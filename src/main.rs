@@ -2,10 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::process::exit;
 
-#[macro_use]
-extern crate clap;
-
-extern crate serde_json;
+use clap::{clap_app, crate_version};
 use serde_json::{from_str, Value};
 
 fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
