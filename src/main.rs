@@ -14,7 +14,7 @@ enum JpErr {
     FileReadError,
     EmptyFileError,
     JsonParseError,
-    InvalidQuery,
+    InvalidQuery(String),
     FileOpenError,
 }
 
@@ -24,7 +24,7 @@ impl From<JpErr> for i32 {
             JpErr::FileReadError => 2,
             JpErr::EmptyFileError => 5,
             JpErr::JsonParseError => 3,
-            JpErr::InvalidQuery => 4,
+            JpErr::InvalidQuery(_) => 4,
             JpErr::FileOpenError => 1,
         }
     }
@@ -45,27 +45,21 @@ fn read_from_source<T: BufRead>(reader: &mut T) -> Result<Value, JpErr> {
     Ok(json)
 }
 
-fn print_json(value: Value, options: PrintOptions) {
-    let json: &Value;
-
-    if options.pointer == "/" {
-        json = &value;
+fn print_json(value: Value, options: PrintOptions) -> Result<(), JpErr> {
+    let json = if options.pointer == "/" {
+        &value
     } else {
-        // invalid query
-        json = match value.pointer(&options.pointer) {
-            None => {
-                eprintln!("Invalid query: {}", options.pointer[1..].replace('/', "."));
-                exit(4);
-            }
-            value => value.unwrap(),
-        }
-    }
+        value.pointer(&options.pointer)
+            .ok_or(JpErr::InvalidQuery(options.pointer[1..].replace('/', ".")))?
+    };
 
     if options.pretty {
         println!("{:#}", json);
     } else {
         println!("{}", json);
     }
+
+    Ok(())
 }
 
 fn main() -> Exit<JpErr> {
@@ -108,7 +102,7 @@ fn main() -> Exit<JpErr> {
         pretty: matches.is_present("PRETTY"),
     };
 
-    print_json(value, options);
+    print_json(value, options)?;
 
     Exit::Ok
 }
