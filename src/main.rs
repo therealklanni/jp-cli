@@ -1,12 +1,38 @@
+#![feature(termination_trait_lib)]
+#![feature(try_trait)]
+
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::process::exit;
 
 use clap::{clap_app, crate_version};
+use exit::Exit;
 use serde_json::{from_str, Value};
+
+#[derive(Debug)]
+enum JpErr {
+    FileReadError,
+    EmptyFileError,
+    JsonParseError,
+    InvalidQuery,
+    FileOpenError,
+}
+
+impl From<JpErr> for i32 {
+    fn from(err: JpErr) -> Self {
+        match err {
+            JpErr::FileReadError => 2,
+            JpErr::EmptyFileError => 5,
+            JpErr::JsonParseError => 3,
+            JpErr::InvalidQuery => 4,
+            JpErr::FileOpenError => 1,
+        }
+    }
+}
 
 fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
     let mut contents = String::new();
+    // file read error
     let size = match reader.read_to_string(&mut contents) {
         Ok(size) => size,
         Err(e) => {
@@ -15,10 +41,12 @@ fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
         }
     };
 
+    // empty file error
     if size == 0 {
         exit(0);
     }
 
+    // JsonParseError
     match from_str(&contents) {
         Ok(json) => json,
         Err(e) => {
@@ -34,6 +62,7 @@ fn print_json(value: Value, options: PrintOptions) {
     if options.pointer == "/" {
         json = &value;
     } else {
+        // invalid query
         json = match value.pointer(&options.pointer) {
             None => {
                 eprintln!("Invalid query: {}", options.pointer[1..].replace('/', "."));
@@ -67,6 +96,7 @@ fn main() {
 
     if matches.is_present("FILE") {
         let filename = matches.value_of("FILE").unwrap();
+        // fileopenerror
         let file = match File::open(filename) {
             Ok(file) => file,
             Err(e) => {
