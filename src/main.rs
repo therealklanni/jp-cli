@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader};
 use std::process::exit;
 
 #[macro_use]
@@ -8,7 +8,7 @@ extern crate clap;
 extern crate serde_json;
 use serde_json::{from_str, Value};
 
-fn read_from_source<T: Read>(reader: &mut T) -> Value {
+fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
     let mut contents = String::new();
     let size = match reader.read_to_string(&mut contents) {
         Ok(size) => size,
@@ -54,15 +54,16 @@ fn main() {
 
     if matches.is_present("FILE") {
         let filename = matches.value_of("FILE").unwrap();
-        let mut file = match File::open(filename) {
+        let file = match File::open(filename) {
             Ok(file) => file,
             Err(e) => {
                 eprintln!("Error: {}: {}", e, filename);
                 exit(1);
             }
         };
+        let mut buf_reader = BufReader::new(file);
 
-        value = read_from_source(&mut file);
+        value = read_from_source(&mut buf_reader);
     } else {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
