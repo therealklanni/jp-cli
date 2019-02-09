@@ -15,5 +15,5 @@ is-it-maintained-open-issues = { repository = "therealklanni/jp-cli" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-serde_json = "*"
+serde_json = "1.0.38"
 clap = "2.31.2"
