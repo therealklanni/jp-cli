@@ -30,30 +30,22 @@ impl From<JpErr> for i32 {
     }
 }
 
-fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
+fn read_from_source<T: BufRead>(reader: &mut T) -> Result<Value, JpErr> {
     let mut contents = String::new();
     // file read error
-    let size = match reader.read_to_string(&mut contents) {
-        Ok(size) => size,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            exit(2);
-        }
-    };
+    let size = reader.read_to_string(&mut contents)
+        .map_err(|_| JpErr::FileReadError)?;
 
     // empty file error
     if size == 0 {
-        exit(0);
+        return Err(JpErr::EmptyFileError);
     }
 
     // JsonParseError
-    match from_str(&contents) {
-        Ok(json) => json,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            exit(3);
-        }
-    }
+    let json = from_str(&contents)
+        .map_err(|_| JpErr::JsonParseError)?;
+
+    Ok(json)
 }
 
 fn print_json(value: Value, options: PrintOptions) {
@@ -79,7 +71,7 @@ fn print_json(value: Value, options: PrintOptions) {
     }
 }
 
-fn main() {
+fn main() -> Exit<JpErr> {
     let matches = clap_app!(jp =>
         (version: crate_version!())
         (about: "JSON Probe (http://github.com/therealklanni/jp-cli)")
@@ -106,12 +98,12 @@ fn main() {
         };
         let mut buf_reader = BufReader::new(file);
 
-        value = read_from_source(&mut buf_reader);
+        value = read_from_source(&mut buf_reader)?;
     } else {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
 
-        value = read_from_source(&mut handle);
+        value = read_from_source(&mut handle)?;
     }
 
     let options = PrintOptions {
@@ -120,6 +112,8 @@ fn main() {
     };
 
     print_json(value, options);
+
+    Exit::Ok
 }
 
 struct PrintOptions {
