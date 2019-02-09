@@ -32,16 +32,13 @@ impl From<JpErr> for i32 {
 
 fn read_from_source<T: BufRead>(reader: &mut T) -> Result<Value, JpErr> {
     let mut contents = String::new();
-    // file read error
     let size = reader.read_to_string(&mut contents)
         .map_err(|_| JpErr::FileReadError)?;
 
-    // empty file error
     if size == 0 {
         return Err(JpErr::EmptyFileError);
     }
 
-    // JsonParseError
     let json = from_str(&contents)
         .map_err(|_| JpErr::JsonParseError)?;
 
