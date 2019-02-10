@@ -1,59 +1,67 @@
+#![feature(termination_trait_lib)]
+#![feature(try_trait)]
+
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::process::exit;
 
-#[macro_use]
-extern crate clap;
-
-extern crate serde_json;
+use clap::{clap_app, crate_version};
+use exit::Exit;
 use serde_json::{from_str, Value};
 
-fn read_from_source<T: BufRead>(reader: &mut T) -> Value {
-    let mut contents = String::new();
-    let size = match reader.read_to_string(&mut contents) {
-        Ok(size) => size,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            exit(2);
-        }
-    };
+#[derive(Debug)]
+enum JpErr {
+    FileReadError,
+    EmptyFileError,
+    JsonParseError,
+    InvalidQuery(String),
+    FileOpenError(String),
+}
 
-    if size == 0 {
-        exit(0);
-    }
-
-    match from_str(&contents) {
-        Ok(json) => json,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            exit(3);
+impl From<JpErr> for i32 {
+    fn from(err: JpErr) -> Self {
+        match err {
+            JpErr::FileReadError => 2,
+            JpErr::EmptyFileError => 5,
+            JpErr::JsonParseError => 3,
+            JpErr::InvalidQuery(_) => 4,
+            JpErr::FileOpenError(_) => 1,
         }
     }
 }
 
-fn print_json(value: Value, options: PrintOptions) {
-    let json: &Value;
+fn read_from_source<T: BufRead>(reader: &mut T) -> Result<Value, JpErr> {
+    let mut contents = String::new();
+    let size = reader.read_to_string(&mut contents)
+        .map_err(|_| JpErr::FileReadError)?;
 
-    if options.pointer == "/" {
-        json = &value;
-    } else {
-        json = match value.pointer(&options.pointer) {
-            None => {
-                eprintln!("Invalid query: {}", options.pointer[1..].replace('/', "."));
-                exit(4);
-            }
-            value => value.unwrap(),
-        }
+    if size == 0 {
+        return Err(JpErr::EmptyFileError);
     }
+
+    let json = from_str(&contents)
+        .map_err(|_| JpErr::JsonParseError)?;
+
+    Ok(json)
+}
+
+fn print_json(value: Value, options: PrintOptions) -> Result<(), JpErr> {
+    let json = if options.pointer == "/" {
+        &value
+    } else {
+        value.pointer(&options.pointer)
+            .ok_or(JpErr::InvalidQuery(options.pointer[1..].replace('/', ".")))?
+    };
 
     if options.pretty {
         println!("{:#}", json);
     } else {
         println!("{}", json);
     }
+
+    Ok(())
 }
 
-fn main() {
+fn main() -> Exit<JpErr> {
     let matches = clap_app!(jp =>
         (version: crate_version!())
         (about: "JSON Probe (http://github.com/therealklanni/jp-cli)")
@@ -70,21 +78,16 @@ fn main() {
 
     if matches.is_present("FILE") {
         let filename = matches.value_of("FILE").unwrap();
-        let file = match File::open(filename) {
-            Ok(file) => file,
-            Err(e) => {
-                eprintln!("Error: {}: {}", e, filename);
-                exit(1);
-            }
-        };
+        let file = File::open(filename)
+            .map_err(|_| JpErr::FileOpenError(filename.to_string()))?;
         let mut buf_reader = BufReader::new(file);
 
-        value = read_from_source(&mut buf_reader);
+        value = read_from_source(&mut buf_reader)?;
     } else {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
 
-        value = read_from_source(&mut handle);
+        value = read_from_source(&mut handle)?;
     }
 
     let options = PrintOptions {
@@ -92,7 +95,9 @@ fn main() {
         pretty: matches.is_present("PRETTY"),
     };
 
-    print_json(value, options);
+    print_json(value, options)?;
+
+    Exit::Ok
 }
 
 struct PrintOptions {

@@ -17,3 +17,4 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 serde_json = "1.0.38"
 clap = "2.31.2"
+exit = { git = "https://github.com/JoshMcguigan/exit", rev = "216e9b07" }
