@@ -6,7 +6,7 @@ use std::io::{self, BufRead, BufReader};
 
 use clap::{clap_app, crate_version};
 use exit::Exit;
-use serde_json::{from_str, Value};
+use serde_json::{from_str, to_value, Value};
 
 #[derive(Debug)]
 enum JpErr {
@@ -45,11 +45,31 @@ fn read_from_source<T: BufRead>(reader: &mut T) -> Result<Value, JpErr> {
 }
 
 fn print_json(value: Value, options: PrintOptions) -> Result<(), JpErr> {
-    let json = if options.pointer == "/" {
+    let pointer_as_query: String = options.pointer[1..].replace('/', ".");
+
+    let mut json = if options.pointer == "/" {
         &value
     } else {
         value.pointer(&options.pointer)
-            .ok_or(JpErr::InvalidQuery(options.pointer[1..].replace('/', ".")))?
+            .ok_or(JpErr::InvalidQuery(pointer_as_query.clone()))?
+    };
+
+    let json_value: Value;
+
+    json = if options.keys {
+        let json_keys = match json {
+            Value::Object(ref v) => v.keys(),
+            _ => {
+                eprintln!("Error: cannot print keys of a non-object: {}", pointer_as_query);
+                std::process::exit(6);
+            }
+        };
+
+        let keys_as_vec: Vec<String> = json_keys.cloned().collect();
+        json_value = to_value(keys_as_vec).unwrap();
+        &json_value
+    } else {
+        &json
     };
 
     if options.pretty {
@@ -67,14 +87,19 @@ fn main() -> Exit<JpErr> {
         (about: "JSON Probe (http://github.com/therealklanni/jp-cli)")
         (@arg FILE: -f --file +takes_value "JSON file to probe")
         (@arg PRETTY: -P --pretty "Prints pretty format for humans")
+        (@arg KEYS: -k --keys "Prints the keys of the object")
         (@arg PATTERN: "Query pattern")
     )
     .get_matches();
 
-    let pattern = matches.value_of("PATTERN").unwrap_or("");
-    let prefixed = format!("{}{}", "/", pattern);
-    let pointer = prefixed.replace(".", "/");
+    let mut pointer = String::from("/");
     let value: Value;
+
+    if matches.is_present("PATTERN") {
+        let pattern = matches.value_of("PATTERN").unwrap();
+        let prefixed = format!("{}{}", "/", pattern);
+        pointer = prefixed.replace(".", "/");
+    }
 
     if matches.is_present("FILE") {
         let filename = matches.value_of("FILE").unwrap();
@@ -93,6 +118,7 @@ fn main() -> Exit<JpErr> {
     let options = PrintOptions {
         pointer,
         pretty: matches.is_present("PRETTY"),
+        keys: matches.is_present("KEYS"),
     };
 
     print_json(value, options)?;
@@ -103,4 +129,5 @@ fn main() -> Exit<JpErr> {
 struct PrintOptions {
     pointer: String,
     pretty: bool,
+    keys: bool,
 }
