@@ -1,6 +1,6 @@
 [package]
 name = "jp_cli"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2018"
 authors = ["Kevin Lanni <therealklanni@gmail.com>"]
 description = "JSON Probe — pluck values from JSON input"
